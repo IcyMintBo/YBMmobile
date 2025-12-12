@@ -842,7 +842,7 @@
   line-height: 1.5;
 }
 
-/* 手机端：全屏 + 整机稍微放大 */
+/* 手机端：全屏展示，略微缩小一点，避免上下被裁掉 */
 @media (max-width: 768px) {
   .ybm-phone-panel {
     left: 0;
@@ -857,11 +857,12 @@
     justify-content: center;
     align-items: center;
     padding: 0;
+    overflow: auto; /* 万一还超高，可以轻微滚动 */
   }
 
-  /* 整个诺基亚机身放大一点 */
+  /* 整个诺基亚机身略微缩小，而不是放大 */
   .ybm-nokia-frame {
-    transform: scale(1.2);
+    transform: scale(0.9);
     transform-origin: center center;
   }
 
@@ -1079,3 +1080,4 @@
   font-size: 11px;
   opacity: 0.8;
 }
+
