@@ -862,7 +862,7 @@
 
   /* 整个诺基亚机身略微缩小，而不是放大 */
   .ybm-nokia-frame {
-    transform: scale(0.8);
+    transform: scale(0.9);
     transform-origin: center center;
   }
 
@@ -1077,5 +1077,6 @@
   font-size: 11px;
   opacity: 0.8;
 }
+
 
 
