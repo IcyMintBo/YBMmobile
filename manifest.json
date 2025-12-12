@@ -1,0 +1,12 @@
+{
+  "display_name": "外置手机",
+  "loading_order": 100,
+  "requires": [],
+  "optional": [],
+  "js": "index.js", 
+  "css": "phone.css",
+  "author": "薄荷冰淇淋",
+  "version": "1.0.0",
+  "homePage": "",
+  "description": "简单粗暴外置手机"
+}

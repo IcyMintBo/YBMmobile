@@ -1,0 +1,1081 @@
+/* ===========================
+ * phone.css  外置手机样式（5300 壳 + 蓝色屏幕）
+ * =========================== */
+
+:root {
+  --scale: 1px;
+
+  /* 中心屏幕 & 黑框 */
+  --screen-w: calc(216 * var(--scale));
+  --screen-h: calc(294 * var(--scale));
+
+  --frame-w: calc((216 + 17*2) * var(--scale)); /* 250 */
+  --frame-h: calc((294 + 17*2) * var(--scale)); /* 328 */
+
+  --red-w: calc(32 * var(--scale));
+  --red-h: calc(328 * var(--scale));
+
+  /* 顶部块 */
+  --top-inner-w: calc(250 * var(--scale));
+  --top-inner-h: calc(40 * var(--scale));
+  --top-inner-r: calc(53 * var(--scale));
+
+  --top-outer-w: calc(314 * var(--scale));
+  --top-outer-h: calc(70 * var(--scale));
+  --top-outer-r: calc(80 * var(--scale));
+
+  /* 底部块 */
+  --bottom-inner-w: calc(250 * var(--scale));
+  --bottom-inner-h: calc(120 * var(--scale));
+  --bottom-inner-r: calc(53 * var(--scale));
+
+  --bottom-outer-w: calc(314 * var(--scale));
+  --bottom-outer-h: calc((127 + 30) * var(--scale)); 
+  --bottom-outer-r: calc(70 * var(--scale));
+}
+
+/* 整个浮窗：放在 ST 页面上，不改全局 body */
+.ybm-phone-panel {
+  position: fixed;
+  right: 40px;
+  bottom: 40px;
+  padding: 20px;
+  border-radius: 32px;
+  background: radial-gradient(circle at 50% 0%, #30333a 0, #111 55%, #050506 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2147482999;
+  color: #eee;
+  font-family: system-ui, "Microsoft YaHei", sans-serif;
+}
+
+/* 外框右上角关闭按钮 */
+.ybm-phone-close-btn {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  background: transparent;
+  color: #ffffff;
+  font-size: 14px;
+  line-height: 18px;
+  text-align: center;
+  cursor: pointer;
+  padding: 0;
+  z-index: 2;
+}
+
+.ybm-phone-close-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* 拖动时鼠标变成移动形状 */
+.ybm-phone-panel.ybm-dragging {
+  cursor: move;
+}
+
+/* 浮动按钮（右下角 “外置手机”） */
+#ybm-phone-toggle,
+.ybm-phone-toggle-btn {
+  position: fixed;
+  right: 16px;
+  bottom: 80px;
+  z-index: 2147483000;
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  background: rgba(20, 20, 30, 0.9);
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: none;
+  color: #f5f5ff;
+  font-size: 13px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Microsoft YaHei", sans-serif;
+  transition: transform 0.15s ease, box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.ybm-phone-toggle-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 18px rgba(0, 0, 0, 0.8);
+  background: rgba(30, 30, 50, 0.95);
+}
+
+/* ============ 整机外壳（原来的 phone-core） ============ */
+
+.ybm-nokia-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  filter: drop-shadow(0 12px 18px rgba(0,0,0,0.75));
+  position: relative;
+}
+
+/* 顶部灰帽 */
+.top-block {
+  width: var(--top-outer-w);
+  height: var(--top-outer-h);
+  border-radius: var(--top-outer-r) var(--top-outer-r) 0 0;
+  background: linear-gradient(180deg, #dbdde2 0, #b0b0b3 55%, #9b9b9f 100%);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 0;
+  border-top: 1px solid rgba(255,255,255,0.8);
+  border-left: 1px solid rgba(255,255,255,0.4);
+  border-right: 1px solid rgba(0,0,0,0.3);
+}
+
+/* 顶部灰帽内阴影，让白块像嵌进去 */
+.top-block::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: calc(6 * var(--scale));
+  background: linear-gradient(180deg, rgba(0,0,0,0.12), transparent);
+  pointer-events: none;
+}
+
+/* 白色顶部内区，下移形成灰带 */
+.top-inner {
+  position: absolute;
+  left: 50%;
+  top: calc(32 * var(--scale));
+  transform: translateX(-50%);
+  width: var(--top-inner-w);
+  height: var(--top-inner-h);
+  background: linear-gradient(180deg, #ffffff 0, #f6f6f8 60%, #e8e8eb 100%);
+  border-radius: var(--top-inner-r) var(--top-inner-r) 0 0;
+  box-shadow:
+    0 2px 0 rgba(0,0,0,0.18),
+    0 -1px 0 rgba(255,255,255,0.9);
+}
+
+/* 顶部听筒小孔 */
+.top-inner::before,
+.top-inner::after {
+  content: "";
+  position: absolute;
+  top: calc(10 * var(--scale));
+  width: calc(18 * var(--scale));
+  height: calc(4 * var(--scale));
+  border-radius: 999px;
+  background: linear-gradient(180deg, #222 0, #555 100%);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.3);
+  opacity: 0.85;
+}
+.top-inner::before { left: 40%; }
+.top-inner::after { right: 40%; }
+
+/* === 中段：红条 + 黑框 + 屏幕 === */
+.middle-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--frame-h);
+  width: calc((32*2 + 250) * var(--scale));
+  position: relative;
+}
+
+.red-strip {
+  width: var(--red-w);
+  height: var(--red-h);
+  background: linear-gradient(180deg, #f0462f 0, #d12016 55%, #a61613 100%);
+  box-shadow:
+    inset 1px 0 0 rgba(255,255,255,0.45),
+    inset -1px 0 0 rgba(0,0,0,0.35);
+}
+
+.screen-frame {
+  width: var(--frame-w);
+  height: var(--frame-h);
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.8),
+    0 3px 4px rgba(0,0,0,0.7),
+    0 -1px 0 rgba(255,255,255,0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 蓝色屏幕，里面是我们真正的 UI */
+.screen-inner {
+  width: var(--screen-w);
+  height: var(--screen-h);
+  background: linear-gradient(180deg, #7cd4ff 0, #4ba4e2 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,0.25),
+    inset 0 -10px 18px rgba(0,0,0,0.22);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 屏幕高光 */
+.screen-inner::before {
+  content: "";
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  top: 0;
+  height: 40%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.42), rgba(255,255,255,0) 80%);
+  pointer-events: none;
+}
+
+/* 真正的“内容层”铺在屏幕上
+   —— 如果想统一换手机里的字体，在这里改 font-family 即可 */
+.screen-inner-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  color: #022028;
+  font-size: 12px;
+  font-family: system-ui, "Microsoft YaHei", sans-serif;
+}
+
+/* 底部灰壳 */
+.bottom-block {
+  width: var(--bottom-outer-w);
+  height: var(--bottom-outer-h);
+  border-radius: 0 0 var(--bottom-outer-r) var(--bottom-outer-r);
+  background: linear-gradient(180deg, #c9cacf 0, #a7a8ac 55%, #8f8f93 100%);
+  position: relative;
+  overflow: hidden;
+  margin-top: 0;
+  border-bottom: 1px solid rgba(0,0,0,0.6);
+  border-left: 1px solid rgba(255,255,255,0.3);
+  border-right: 1px solid rgba(0,0,0,0.4);
+}
+
+/* 灰壳内阴影，让白底有“嵌进去”的感觉 */
+.bottom-block::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -1px;
+  height: calc(10 * var(--scale));
+  background: linear-gradient(180deg, rgba(0,0,0,0.25), transparent);
+  pointer-events: none;
+}
+
+/* 底部白色按键区 */
+.bottom-inner {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  width: var(--bottom-inner-w);
+  height: var(--bottom-inner-h);
+  background: linear-gradient(180deg, #ffffff 0, #f7f7f9 60%, #ececef 100%);
+  border-radius: 0 0 var(--bottom-inner-r) var(--bottom-inner-r);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: calc(12 * var(--scale)) calc(20 * var(--scale));
+  box-sizing: border-box;
+  box-shadow:
+    0 -1px 0 rgba(255,255,255,0.9),
+    inset 0 8px 10px rgba(0,0,0,0.08);
+}
+
+/* ===== 按键公共样式：黑边 + 凸起 ===== */
+.key-btn {
+  height: calc(8 * var(--scale));
+  border-radius: calc(4 * var(--scale));
+  border: calc(1 * var(--scale)) solid #000000;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #fdfdfd 0, #d8d8d8 100%);
+  box-shadow:
+    0 calc(1 * var(--scale)) 0 rgba(0,0,0,0.45),
+    0 calc(-1 * var(--scale)) 0 rgba(255,255,255,0.9);
+}
+
+.key-btn-blue {
+  background: linear-gradient(180deg, #e5f4ff 0, #93c0e9 60%, #6f9dcc 100%);
+}
+.key-btn-green {
+  background: linear-gradient(180deg, #e5ffe9 0, #5fcb6f 60%, #3ca44e 100%);
+}
+.key-btn-red {
+  background: linear-gradient(180deg, #ffe5e5 0, #eb6262 60%, #cf3b32 100%);
+}
+
+/* 顶部按键行：两个蓝键 + 中间空位 */
+.key-row-top {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  margin-top: calc(9 * var(--scale));
+  margin-bottom: calc(-12 * var(--scale));
+}
+.key-row-top .key-btn {
+  width: calc(42 * var(--scale));
+  margin: 0 calc(4 * var(--scale)); 
+}
+.key-row-top .key-spacer {
+  flex: 1;
+}
+
+/* 底部按键行：左绿右红，中间空位 */
+.key-row-bottom {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  margin-top: calc(-12 * var(--scale));
+  margin-bottom: calc(15 * var(--scale));
+}
+.key-row-bottom .key-btn {
+  width: calc(42 * var(--scale));
+  margin: 0 calc(4 * var(--scale));
+}
+.key-row-bottom .key-spacer {
+  flex: 1;
+}
+
+/* 中央主键：两层倒圆角方形，黑描边 + 凸起 */
+.nav-ring {
+  position: relative;
+  width: calc(100 * var(--scale));
+  height: calc(90 * var(--scale));
+  border-radius: calc(30 * var(--scale));
+  border: calc(2 * var(--scale)) solid #000000;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #fbfbfb 0, #e0e0e0 60%, #c7c7c7 100%);
+  box-shadow:
+    0 calc(3 * var(--scale)) 0 rgba(0,0,0,0.65),
+    0 calc(-2 * var(--scale)) 0 rgba(255,255,255,0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-ring-inner {
+  width: calc(50 * var(--scale));
+  height: calc(34 * var(--scale));
+  border-radius: calc(14 * var(--scale));
+  border: calc(2 * var(--scale)) solid #000000;
+  box-sizing: border-box;
+  background: radial-gradient(circle at 30% 20%, #ffffff 0, #e6e6e6 70%);
+  box-shadow:
+    0 calc(1 * var(--scale)) 0 rgba(0,0,0,0.45),
+    0 calc(-1 * var(--scale)) 0 rgba(255,255,255,0.9);
+}
+
+/* ====== 屏幕内部：标题 + 各种视图 ====== */
+
+.ybm-nokia-header {
+  font-size: 11px;
+  color: #022028;
+  margin-bottom: 2px;
+}
+
+.ybm-nokia-status-text {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.ybm-status-operator {
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+.ybm-status-icons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+}
+
+.ybm-signal-bars {
+  letter-spacing: 1px;
+}
+
+.ybm-battery {
+  border-radius: 3px;
+  padding: 0 3px;
+  border: 1px solid rgba(0,0,0,0.5);
+  font-size: 9px;
+}
+
+/* 屏幕标题 */
+.ybm-nokia-title {
+  text-align: center;
+  font-weight: bold;
+  font-size: 13px;
+}
+
+/* 通用屏幕容器 */
+.ybm-nokia-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ===== 主菜单 ===== */
+
+.ybm-nokia-home-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 3×2 的 icon 网格 */
+.ybm-nokia-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 2px 2px 0;
+}
+
+/* 主菜单 icon：参考你给的信封方块风格 */
+.ybm-home-icon {
+  position: relative;
+  border-radius: 10px;
+  padding: 10px 4px 6px;
+  background: linear-gradient(180deg, #d7e9f7 0, #b6d5f0 55%, #9ebfdd 100%);
+  border: 1px solid rgba(0,0,0,0.7);
+  box-shadow:
+    0 2px 0 rgba(255,255,255,0.9),
+    0 3px 0 rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.ybm-home-icon::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.7);
+  box-shadow:
+    inset 0 1px 2px rgba(0,0,0,0.35);
+  pointer-events: none;
+}
+
+.ybm-home-icon .icon-glyph {
+  font-size: 16px;
+  margin-bottom: 3px;
+  z-index: 1;
+}
+
+.ybm-home-icon .icon-label {
+  font-size: 11px;
+  z-index: 1;
+}
+
+.ybm-home-icon:hover {
+  background: linear-gradient(180deg, #ebf5ff 0, #cbe2f6 55%, #b4cfe7 100%);
+}
+
+/* 主菜单下方空白块去掉，这两个类保留防报错但不用 */
+.ybm-nokia-home-panels {
+  display: none;
+}
+.ybm-home-panel {
+  display: none;
+}
+
+/* 底部软键：左“返回”右“确认” */
+.ybm-nokia-softkeys {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  padding: 0 4px;
+}
+
+.ybm-softkey {
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  color: #022028;
+  padding: 0 4px;
+  cursor: pointer;
+}
+.ybm-softkey:hover {
+  text-shadow: 0 0 2px rgba(255,255,255,0.8);
+}
+
+/* 顶部小返回键 */
+.ybm-nav-btn {
+  border: none;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 11px;
+  background: rgba(255,255,255,0.5);
+  color: #022028;
+  cursor: pointer;
+}
+.ybm-nav-btn:hover {
+  background: rgba(255,255,255,0.8);
+}
+
+/* ===== 联系人列表（仿微信） ===== */
+
+.ybm-nokia-contacts-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.ybm-contacts-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.ybm-contacts-list {
+  flex: 1;
+  overflow-y: auto;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.25);
+}
+
+/* 单条联系人 */
+.ybm-contact-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+
+.ybm-contact-row:last-child {
+  border-bottom: none;
+}
+
+/* 左侧头像圆圈 */
+.ybm-contact-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f8f8f8 0, #d8d8d8 100%);
+  border: 1px solid rgba(0,0,0,0.4);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.9),
+    0 2px 0 rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #44505d;
+}
+
+/* 右侧文字两行 */
+.ybm-contact-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.ybm-contact-name {
+  font-size: 12px;
+}
+
+.ybm-contact-sub {
+  font-size: 10px;
+  opacity: 0.75;
+}
+
+/* 当前选中联系人 */
+.ybm-contact-selected {
+  background: rgba(255,255,255,0.6);
+}
+
+/* 没有联系人时 */
+.ybm-contacts-empty {
+  padding: 8px;
+  font-size: 12px;
+}
+
+/* ===== 聊天视图 ===== */
+
+.ybm-nokia-chat-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.ybm-chat-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.ybm-chat-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.25);
+  padding: 3px;
+  gap: 3px;
+}
+
+/* 聊天消息列表 */
+.ybm-chat-list {
+  max-height: 260px;        
+  overflow-y: auto;       
+  padding-right: 4px;       
+}
+
+.ybm-chat-buffer {
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.ybm-chat-buffer {
+  max-height: 60px;
+  overflow-y: auto;
+  border-top: 1px dashed rgba(0,0,0,0.35);
+  padding-top: 2px;
+}
+
+/* 气泡 */
+.ybm-chat-bubble {
+  max-width: 85%;
+  padding: 2px 4px;
+  margin-bottom: 2px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  word-break: break-word;
+  border: 1px solid rgba(0,0,0,0.4);
+}
+
+.ybm-chat-user {
+  margin-left: auto;
+  background: rgba(227,255,215,0.9);
+}
+.ybm-chat-char {
+  margin-right: auto;
+  background: rgba(252,255,225,0.95);
+}
+.ybm-chat-revoked {
+  opacity: 0.55;
+  font-style: italic;
+}
+
+.ybm-chat-pending {
+  border-style: dashed;
+}
+.ybm-chat-pending-actions {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 4px;
+}
+.ybm-chat-pending-btn {
+  border: none;
+  padding: 0 4px;
+  font-size: 10px;
+  border-radius: 3px;
+  background: rgba(0,0,0,0.15);
+  color: #022028;
+  cursor: pointer;
+}
+
+/* 输入区 */
+.ybm-chat-input-bar {
+  margin-top: 3px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.ybm-chat-input {
+  flex: 1;
+  resize: none;
+  border-radius: 4px;
+  border: 1px solid rgba(0,0,0,0.45);
+  background: rgba(255,255,255,0.75);
+  color: #022028;
+  font-size: 12px;
+  padding: 3px 4px;
+  min-height: 30px;
+}
+.ybm-chat-send-btn {
+  border-radius: 4px;
+  border: none;
+  padding: 0 10px;
+  font-size: 12px;
+  background: #297835;
+  color: #f5fff5;
+  cursor: pointer;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ybm-chat-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ybm-chat-save-btn {
+  border-radius: 4px;
+  border: none;
+  padding: 0 8px;
+  font-size: 11px;
+  background: #555a6a;
+  color: #f5fff5;
+  cursor: pointer;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 黑客 / 查手机 */
+.ybm-nokia-memo-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.ybm-memo-header-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+.ybm-memo-title {
+  font-size: 12px;
+  font-weight: bold;
+}
+.ybm-memo-header {
+  font-weight: bold;
+  margin-bottom: 2px;
+}
+
+.ybm-memo-roles-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+}
+.ybm-memo-role-card {
+  border-radius: 4px;
+  padding: 3px;
+  background: rgba(255,255,255,0.3);
+  cursor: pointer;
+  font-size: 12px;
+}
+.ybm-memo-role-card:hover {
+  background: rgba(255,255,255,0.6);
+}
+
+.ybm-memo-role-card .role-name {
+  font-weight: bold;
+}
+.ybm-memo-role-card .role-sub {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.ybm-memo-peek-tip {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.ybm-memo-peek-actions {
+  margin-bottom: 4px;
+}
+.ybm-memo-peek-btn {
+  border-radius: 4px;
+  border: none;
+  padding: 3px 10px;
+  font-size: 12px;
+  background: #b8892a;
+  color: #fff7e0;
+  cursor: pointer;
+}
+.ybm-memo-result {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* 占位页 */
+.ybm-nokia-placeholder-view {
+  flex: 1;
+  display: flex;
+}
+.ybm-nokia-placeholder-box {
+  border-radius: 4px;
+  background: rgba(255,255,255,0.3);
+  padding: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* 手机端：全屏 + 整机稍微放大 */
+@media (max-width: 768px) {
+  .ybm-phone-panel {
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    margin: auto;
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+  }
+
+  /* 整个诺基亚机身放大一点 */
+  .ybm-nokia-frame {
+    transform: scale(1.2);
+    transform-origin: center center;
+  }
+
+  /* 右下角小按钮保持在底部中间（如果你有用的话） */
+  #ybm-phone-toggle,
+  .ybm-phone-toggle-btn {
+    left: 50%;
+    bottom: 20px;
+    right: auto;
+    transform: translateX(-50%);
+  }
+}
+/* ==== 外置手机：聊天 + 查手机 + API 滚动设置（最终版） ==== */
+
+/* 屏幕内容层：允许内部元素按 flex 撑满并滚动 */
+.ybm-nokia-screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== 短信聊天视图 ===== */
+
+/* 短信对话整体：上面聊天，下面输入栏 */
+.ybm-nokia-chat-view,
+.ybm-chat-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* 聊天主体：再拆成“消息列表 + 暂存区” */
+.ybm-chat-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.25);
+  padding: 3px;
+  gap: 3px;
+}
+
+/* 消息列表：真正滚动的区域 */
+.ybm-chat-list {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+/* 暂存区现在不用，直接隐藏 
+.ybm-chat-buffer {
+  display: none;
+}*/
+
+/* 底部输入栏：固定在底部，不被聊天列表挤走 */
+.ybm-chat-input-bar {
+  margin-top: 3px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* 聊天气泡：宽度随内容变化，上限 80% */
+.ybm-chat-bubble {
+  display: inline-block;
+  max-width: 80%;
+  width: auto;
+  padding: 4px 8px;
+  margin-bottom: 2px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  word-break: break-word;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+}
+
+/* 角色在左，用户在右（左右对齐） */
+.ybm-chat-bubble.ybm-chat-char {
+  align-self: flex-start;
+  margin-right: auto;
+  background: rgba(252, 255, 225, 0.95);
+}
+.ybm-chat-bubble.ybm-chat-user {
+  align-self: flex-end;
+  margin-left: auto;
+  background: rgba(227, 255, 215, 0.9);
+}
+
+/* ===== 查手机视图 ===== */
+
+.ybm-nokia-memo-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 角色网格：固定高度，由内容撑开 */
+.ybm-memo-roles-grid {
+  flex: 0 0 auto;
+}
+
+/* 偷看结果：长文本滚动查看 */
+.ybm-memo-result {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 100%;
+}
+
+/* ===== 占位页 + API 设置界面滚动 ===== */
+
+/* 占位页撑满屏幕高度，允许内部元素压缩高度 */
+.ybm-nokia-placeholder-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* 占位盒子也要参与 flex，不然内部滚动不生效 */
+#ybm-nokia-placeholder-box {
+  flex: 1;
+  min-height: 0;
+}
+
+/* API 设置整体容器：真正滚动的就是这一块 */
+.ybm-api-settings {
+  flex: 1;
+  padding: 8px;
+  font-size: 12px;
+  color: #f5f5ff;
+  overflow-y: auto;     /* 出现竖向滚动条 */
+  box-sizing: border-box;
+}
+
+/* 每块配置的样式 */
+.ybm-api-section {
+  margin-bottom: 10px;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.ybm-api-section-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.ybm-api-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 6px;
+}
+
+.ybm-api-field label {
+  margin-bottom: 2px;
+  opacity: 0.85;
+}
+
+.ybm-api-field input,
+.ybm-api-field select {
+  font-size: 12px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.6);
+  color: #f5f5ff;
+}
+
+.ybm-api-field-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ybm-api-field-inline button {
+  flex-shrink: 0;
+  padding: 3px 6px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.7);
+  color: #f5f5ff;
+  cursor: pointer;
+}
+
+.ybm-api-actions {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ybm-api-actions button {
+  padding: 3px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.7);
+  color: #f5f5ff;
+  cursor: pointer;
+}
+
+.ybm-api-actions span {
+  font-size: 11px;
+  opacity: 0.8;
+}
