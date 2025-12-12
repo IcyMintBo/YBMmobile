@@ -38,7 +38,6 @@ let phoneScreenMode = "contacts"; // sms 下：contacts | chat
 let phoneContacts = null;
 
 // ===== 手机扩展设置 & 预设 / 世界书加载 =====
-// 家里第一次测试,,,sssssssssss
 
 function getPhoneExtSettings() {
   const ctx = getContextSafe() || {};
