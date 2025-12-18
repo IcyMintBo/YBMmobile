@@ -46,6 +46,19 @@ let pendingUserChunks = [];
 let lastSyncedCharMessage = "";
 
 // ========== 工具函数 ==========
+// 把角色名统一映射成固定 roleKey（防止跳人）
+function getRoleKeyFromName(name) {
+  if (!name || typeof name !== "string") return "unknown";
+
+  if (name.includes("岩白眉")) return "yan";
+  if (name.includes("猜叔")) return "cai";
+  if (name.includes("但拓")) return "dantuo";
+  if (name.includes("州槟") || name.includes("州滨")) return "zhoubin";
+
+  return "unknown";
+}
+window.getRoleKeyFromName = getRoleKeyFromName;
+
 
 let __idCounter = 0;
 function genId() {
@@ -161,6 +174,13 @@ export function pushCharMessage(text, extra) {
   }
 
   const visible = stripHiddenForPhoneDisplay(raw);
+  if (typeof window !== "undefined" && window.__PHONE_DEBUG__) {
+  console.groupCollapsed("[PHONE][charMessage]");
+  console.log("raw:", raw);
+  console.log("visible:", visible);
+  console.groupEnd();
+}
+
 
   const msg = {
     id: genId(),

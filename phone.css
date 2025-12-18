@@ -675,6 +675,61 @@
   line-height: 1.4;
   word-break: break-word;
   border: 1px solid rgba(0,0,0,0.4);
+  position: relative;
+}
+
+/* 气泡右上角删除按钮 */
+.ybm-bubble-del {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.18);
+  color: rgba(0,0,0,0.75);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 14px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ybm-bubble-del:active {
+  transform: translateY(1px);
+}
+
+/* ===== 气泡操作菜单（左键点气泡弹出） ===== */
+.ybm-bubble-menu {
+  position: absolute;
+  z-index: 100000;
+  min-width: 120px;
+  padding: 6px;
+  border-radius: 10px;
+  background: rgba(25, 25, 35, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.ybm-bubble-menu.hidden { display: none; }
+.ybm-bubble-menu-btn {
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 4px 0;
+  cursor: pointer;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.92);
+}
+.ybm-bubble-menu-btn:active { transform: translateY(1px); }
+.ybm-bubble-menu-btn.danger {
+  background: rgba(255, 80, 80, 0.18);
+  color: rgba(255, 215, 215, 0.98);
 }
 
 .ybm-chat-user {
@@ -752,6 +807,20 @@
   font-size: 11px;
   background: #555a6a;
   color: #f5fff5;
+  cursor: pointer;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ybm-chat-reroll-btn {
+  border-radius: 4px;
+  border: none;
+  padding: 0 8px;
+  font-size: 11px;
+  background: #7a4a18;
+  color: #fff7ef;
   cursor: pointer;
   height: 14px;
   display: flex;
@@ -869,7 +938,9 @@
   /* 右下角小按钮保持在底部中间（如果你有用的话） */
  #ybm-phone-toggle,
   .ybm-phone-toggle-btn {
-    display: none;
+    display: flex;
+    right: 16px;
+    bottom: 16px;
   }
 }
 /* ==== 外置手机：聊天 + 查手机 + API 滚动设置（最终版） ==== */
@@ -1076,6 +1147,76 @@
 .ybm-api-actions span {
   font-size: 11px;
   opacity: 0.8;
+}
+/* ===== 更新公告 ===== */
+
+#update-btn {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  font-size: 12px;
+  padding: 4px 8px;
+  background: #222;
+  color: #fff;
+  border-radius: 12px;
+  cursor: pointer;
+  z-index: 9999;
+}
+
+#update-panel {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+#update-panel.hidden {
+  display: none;
+}
+
+.update-content {
+  background: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  width: 280px;
+  font-size: 13px;
+}
+
+.update-feedback {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 8px;
+}
+/* ===== 更新公告 强制可读性修复 ===== */
+
+#update-panel {
+  background: rgba(0, 0, 0, 0.45); /* 遮罩稍微深一点，衬文字 */
+}
+
+.update-content {
+  background: #ffffff;
+  color: #222222;        /* 强制正文深色 */
+  opacity: 1 !important; /* 关键：防止被父级洗掉 */
+}
+
+.update-content h3 {
+  color: #111111;
+}
+
+.update-content ul li {
+  color: #222222;
+}
+
+.update-feedback {
+  color: #555555; /* 作者 / 反馈人稍微浅一点，但仍然清晰 */
+  opacity: 1 !important;
+}
+
+#close-update {
+  color: #222;
 }
 
 

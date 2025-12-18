@@ -6,6 +6,8 @@ import {
   pushCharMessage,
   resetHistory,
   getHistory,
+  deleteMessageById,
+  revokeMessageById,
   saveHistoryToMetadata,
   loadHistoryFromMetadata,
   pushPendingChunk,
@@ -36,6 +38,22 @@ let currentApp = "home"; // home | sms | memo | forum | bounty | api
 let phoneScreenMode = "contacts"; // sms 下：contacts | chat
 
 let phoneContacts = null;
+// ====== Role name -> roleKey 映射（全局可用）======
+function getRoleKeyFromName(name) {
+  const n = String(name || "").trim();
+  const map = {
+    "岩白眉": "yan",
+    "猜叔": "cai",
+    "但拓": "dantuo",
+    "州槟": "zhoubin",
+    // 你如果还有别名/英文名，在这里继续加
+    // "Yan Baimei": "yan",
+  };
+  return map[n] || "";
+}
+
+// 暴露给 storage.js / 其他模块用（避免 import 循环）
+window.getRoleKeyFromName = getRoleKeyFromName;
 
 // ===== 手机扩展设置 & 预设 / 世界书加载 =====
 function getPhoneExtSettings() {
@@ -321,10 +339,6 @@ async function buildPhoneContextPrefix(options = {}) {
   return `${blocks.join("\n\n")}\n\n`;
 }
 
-
-
-
-
 // 查手机相关
 let memoMode = "list"; // list | detail
 let memoCurrentCharKey = null;
@@ -353,15 +367,32 @@ async function buildPhonePrompt(text, charName, contactName) {
   const historyText = history
     .map((m) => {
       const mark = m.role === "char" ? "对方" : "我";
-      const revokedMark = m.revoked ? "[已撤回]" : "";
-      const t = m.content || m.rawContent || "";
-      return `${mark}${revokedMark}：${t}`;
+      const raw = (m.rawContent || m.content || "").trim();
+
+      // 撤回：UI 显示占位，但模型需要知道“撤回了什么”
+      if (m.revoked) {
+        if (m.role === "user") {
+          return `${mark}：【用户撤回了一条消息：${raw}】`;
+        }
+        // 用户撤回了“对方/assistant”的某条消息
+        return `${mark}：【对方的上一条消息被用户撤回了：${raw}】`;
+      }
+
+      return `${mark}：${raw}`;
     })
     .join("\n");
 
-  const contactPart = contactName
-    ? `你正在扮演【${charName}】，当前在和联系人【${contactName}】通过一个老式手机聊天。\n`
-    : "";
+  // ✅ 固定身份与输出边界：永远注入，不依赖 contactName（防止混我/对方）
+  const contactPart = `你只扮演【${charName}】。
+这是一个老式手机短信对话。
+- 玩家（我）：真实用户，只会出现在历史里，你绝对不要替玩家说话或输出“我：”
+- 对方（你）：【${charName}】，你只能输出“对方：”开头的消息
+
+规则：
+1）只输出但拓/角色的新短信内容，格式必须是：对方：xxx
+2）不要输出“我：”，不要复述历史，不要加旁白/解释
+3）一次最多输出 1～5 条“对方：…”，每条尽量短（≤35字），符合短信节奏。\n`;
+  ;
 
   // 手机专用上下文前缀（预设 + 世界书）
   const contextPrefix = await buildPhoneContextPrefix({
@@ -375,9 +406,6 @@ async function buildPhonePrompt(text, charName, contactName) {
 
 ${contactPart}历史聊天记录如下（手机视角）：
 ${historyText || "（暂无历史记录）"}
-
-上面的内容是“手机里已经发生的聊天记录”，下面是我刚刚从手机里发出的这条信息（如果有的话）：
-${text || "（这次没有发送新内容，只是整理历史）"}
 
 请你根据这些信息，用手机短信的语气继续回复。`;
 
@@ -551,11 +579,16 @@ export function appendBubble(who, text, options) {
   item.className = "ybm-chat-bubble ybm-chat-" + whoTag;
   if (isRevoked) item.classList.add("ybm-chat-revoked");
 
+  // 用于“左键点气泡弹出菜单”的消息元信息
+  // - dataset.msgId: 历史消息 id 或 pending id
+  // - dataset.pending: "1" 表示是 pending 气泡（尚未写入历史）
+  if (options && options.pending) item.dataset.pending = "1";
+
   const textSpan = document.createElement("span");
   textSpan.className = "ybm-chat-text";
 
   const placeholder =
-    who === "char" ? "对方撤回了一条消息" : "已撤回一条消息";
+    who === "char" ? "【对方撤回了一条消息】" : "【你撤回了一条消息】";
 
   textSpan.textContent =
     isRevoked && !text ? placeholder : text;
@@ -590,86 +623,208 @@ export function appendBubble(who, text, options) {
   item.dataset.placeholder = placeholder;
   item.dataset.peek = "0"; // 0 = 显示占位文案，1 = 显示原文
 
-  // 给“撤回气泡”加点击偷看功能
-  if (isRevoked) {
-    item.addEventListener("click", () => {
-      const currentPeek = item.dataset.peek === "1";
+  // 左键点击气泡：弹出“撤回/删除”（撤回气泡额外提供“偷看/收起”）
+  item.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openBubbleActionMenu(item, textSpan);
+  });
+}
+
+// ========== 气泡操作菜单：左键点击弹出 ========== 
+let __bubbleMenuEl = null;
+
+function ensureBubbleMenu() {
+  if (__bubbleMenuEl) return __bubbleMenuEl;
+  const menu = document.createElement("div");
+  menu.id = "ybm-bubble-menu";
+  menu.className = "ybm-bubble-menu hidden";
+  menu.innerHTML = `
+    <button type="button" class="ybm-bubble-menu-btn" data-act="peek">偷看</button>
+    <button type="button" class="ybm-bubble-menu-btn" data-act="revoke">撤回</button>
+    <button type="button" class="ybm-bubble-menu-btn danger" data-act="delete">删除</button>
+  `;
+  document.body.appendChild(menu);
+
+  // 点击空白处关闭
+  document.addEventListener("click", () => {
+    hideBubbleMenu();
+  });
+  window.addEventListener("scroll", () => hideBubbleMenu(), true);
+  window.addEventListener("resize", () => hideBubbleMenu());
+
+  __bubbleMenuEl = menu;
+  return menu;
+}
+
+function hideBubbleMenu() {
+  if (!__bubbleMenuEl) return;
+  __bubbleMenuEl.classList.add("hidden");
+  __bubbleMenuEl.dataset.targetId = "";
+}
+
+function openBubbleActionMenu(bubbleEl, textSpan) {
+  const menu = ensureBubbleMenu();
+  const isRevoked = bubbleEl.classList.contains("ybm-chat-revoked");
+
+  // revoked 才显示“偷看/收起”，否则隐藏
+  const peekBtn = menu.querySelector('[data-act="peek"]');
+  if (peekBtn) {
+    peekBtn.style.display = isRevoked ? "block" : "none";
+    if (isRevoked) {
+      peekBtn.textContent = bubbleEl.dataset.peek === "1" ? "收起" : "偷看";
+    }
+  }
+
+  // 定位菜单到气泡附近（用 fixed，避免被手机容器 transform 影响导致点了没反应/菜单跑飞）
+  const rect = bubbleEl.getBoundingClientRect();
+  menu.style.position = "fixed";
+  const left = Math.min(rect.left + rect.width / 2, window.innerWidth - 90);
+  const top  = Math.min(rect.top + rect.height + 6, window.innerHeight - 120);
+  menu.style.left = `${Math.max(8, left)}px`;
+  menu.style.top  = `${Math.max(8, top)}px`;
+  menu.classList.remove("hidden");
+
+  // 绑定动作
+  menu.onclick = (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    const btn = ev.target && ev.target.closest ? ev.target.closest("button") : null;
+    if (!btn) return;
+    const act = btn.dataset.act;
+    if (!act) return;
+
+    const id = bubbleEl.dataset.msgId;
+    const isPending = bubbleEl.dataset.pending === "1";
+
+    if (act === "peek") {
+      // 只对撤回气泡：偷看/收起
+      if (!isRevoked) return;
+      const currentPeek = bubbleEl.dataset.peek === "1";
       const history = getHistory();
-      const id = item.dataset.msgId;
       const msg =
         history && id
           ? history.find((m) => m && m.id === id)
           : null;
-
       const original =
         (msg && (msg.rawContent || msg.content)) ||
-        item.dataset.rawContent ||
+        bubbleEl.dataset.rawContent ||
         "";
+      if (!original) return;
+      if (currentPeek) {
+        textSpan.textContent = bubbleEl.dataset.placeholder || "";
+        bubbleEl.dataset.peek = "0";
+      } else {
+        textSpan.textContent = original;
+        bubbleEl.dataset.peek = "1";
+      }
+      hideBubbleMenu();
+      return;
+    }
 
-      if (!original) {
-        // 没有原文，就什么也不做
+    if (act === "revoke") {
+      // 撤回：UI 替换为【你/对方撤回…】；但 rawContent 保留给模型
+      if (isPending) {
+        // pending 撤回：只改 UI 标记 + pending 状态，发送时仍写入历史（revoked=true）
+        revokePendingById(id);
+        bubbleEl.classList.add("ybm-chat-revoked");
+        textSpan.textContent = bubbleEl.dataset.placeholder || "";
+        hideBubbleMenu();
         return;
       }
+      revokeMessageById(id);
+      saveHistoryToMetadata();
+      restoreHistoryUIFromMetadata();
+      hideBubbleMenu();
+      return;
+    }
 
-      if (currentPeek) {
-        // 当前是“偷看中” → 切回占位文案
-        textSpan.textContent = item.dataset.placeholder || placeholder;
-        item.dataset.peek = "0";
-      } else {
-        // 当前是“只看到撤回” → 展示原文
-        textSpan.textContent = original;
-        item.dataset.peek = "1";
+    if (act === "delete") {
+      // 删除：真删，刷新也不回来；pending 也要从队列删掉，避免“删了还发出去”
+      if (isPending) {
+        deletePendingById(id);
+        bubbleEl.remove();
+        hideBubbleMenu();
+        return;
       }
-    });
-  }
+      deleteMessageById(id);
+      saveHistoryToMetadata();
+      restoreHistoryUIFromMetadata();
+      hideBubbleMenu();
+      return;
+    }
+  };
 }
 // ===== 统一处理角色回复文本：拆行 + 撤回 + 过滤思考过程 =====
+// ===== 统一处理角色回复文本：清洗 + 拆行 + 多气泡 =====
 function handleCharReplyText(rawText) {
   if (!rawText || typeof rawText !== "string") return;
 
-  // 统一换行
-  const lines = rawText
-    .replace(/\r\n/g, "\n")
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
+  // 0) 统一换行
+  const src = rawText.replace(/\r\n/g, "\n");
+
+  // 1) 优先：只保留 “对方：...” 的行（最稳，不会把思维过程/旁白塞进来）
+  const extracted = [];
+  const reLine = /^对方[:：]\s*(.+)\s*$/gm;
+  let mm;
+  while ((mm = reLine.exec(src)) !== null) {
+    const body = String(mm[1] || "").trim();
+    if (body) extracted.push(body);
+  }
+
+  // 2) 如果模型没按格式输出：做兜底清洗，但仍然强约束“不要英文长段落/思维过程”
+  let lines = extracted.length ? extracted : src.split("\n").map(s => s.trim()).filter(Boolean);
+
+  const banned = [
+    /analysis\s*:/i,
+    /reasoning/i,
+    /chain\s*of\s*thought/i,
+    /thought\s*process/i,
+    /\bI(?:'| a)m\b/i,              // I’m / I'm
+    /\bI've\b/i,
+    /\bI will\b/i,
+    /\bI can\b/i,
+    /\brefin(ed|ing)\b/i,
+    /\boptions?\b/i,
+    /\bresponse\b/i,
+    /\bprompt\b/i,
+    /as an ai/i,
+  ];
+
+  lines = lines
+    // 去掉 markdown fence
+    .map(l => l.replace(/```[\s\S]*?```/g, "").replace(/\*\*/g, "").replace(/__+/g, ""))
+    // 过滤“对方：”残留或空标签
+    .map(l => l.replace(/^对方[:：]\s*/i, "").trim())
+    .filter(l => l && !/^对方[:：]?$/.test(l));
+
+  // 3) 再兜一层：剔除明显英文长段落（没有中文且英文单词很多）
+  lines = lines.filter(l => {
+    const hasCJK = /[\u4e00-\u9fff]/.test(l);
+    const enWords = (l.match(/[A-Za-z]+/g) || []).length;
+    if (!hasCJK && enWords >= 3) return false;
+    for (const rx of banned) if (rx.test(l)) return false;
+    return true;
+  });
 
   if (!lines.length) return;
 
   for (const line of lines) {
-    // ① 撤回指令：任何一行以 [撤回] 开头都当成命令
-    if (/^\[撤回\]/.test(line)) {
+    // 撤回指令
+    if (line.startsWith("[撤回]")) {
       const revokedId = revokeLastCharMessage();
       if (revokedId) {
-        // 更新 metadata，并重画手机 UI
         saveHistoryToMetadata();
         restoreHistoryUIFromMetadata();
       }
-      // 撤回指令本身不显示成气泡
       continue;
     }
-
-    // ② 过滤明显是“思考过程 / 工具分析”的英文垃圾
-    const lower = line.toLowerCase();
-    const looksLikeReasoning =
-      lower.includes("i've been analyzing") ||
-      lower.includes("i have been analyzing") ||
-      lower.includes("proposed action") ||
-      lower.includes("latest revision") ||
-      lower.includes("tool call") ||
-      lower.startsWith("analysis:") ||
-      lower.startsWith("thought:") ||
-      lower.startsWith("internal reflection");
-
-    if (looksLikeReasoning) {
-      // 直接丢弃这行，不进手机
-      continue;
-    }
-
-    // ③ 正常内容 → 作为一条角色气泡
-    appendBubble("char", line, { revoked: false });
+    appendBubble("char", line, { revoked: false, store: true });
   }
 }
+
+
 
 // 把同一条回复按换行拆成多个气泡：每一行 -> 一个 char 气泡
 function appendCharReplyAsLines(fullText) {
@@ -700,6 +855,7 @@ function initPhoneChatInput() {
   const inputEl = document.getElementById(CHAT_INPUT_ID);
   const sendBtn = document.getElementById(CHAT_SEND_ID);
   const saveBtn = document.getElementById("ybm-chat-save-btn");
+  const rerollBtn = document.getElementById("ybm-chat-reroll-btn");
   if (!inputEl || !sendBtn) return;
 
   // 回车：直接把所有暂存 + 当前输入一起发给模型
@@ -718,10 +874,21 @@ function initPhoneChatInput() {
       if (!text) return;
 
       // 1）加入 pending 列表：等点“发送”时一起发给模型
-      pushPendingChunk(text);
+      const pending = pushPendingChunk(text);
 
       // 2）在手机对话框里先显示出来，但暂时不写入历史
-      appendBubble("user", text, { revoked: false, store: false });
+      //    ⚠️ 必须带上 pending.id，删除时才能把 pending 队列也一起删掉，避免“删了还会发出去”
+      if (pending && pending.id) {
+        appendBubble("user", text, {
+          revoked: false,
+          store: false,
+          msgId: pending.id,
+          pending: true,
+          rawContent: text,
+        });
+      } else {
+        appendBubble("user", text, { revoked: false, store: false });
+      }
 
       // 3）清空输入框
       inputEl.value = "";
@@ -735,6 +902,13 @@ function initPhoneChatInput() {
   sendBtn.addEventListener("click", () => {
     sendBufferedFromPhone();
   });
+
+  // 重roll：删除上一轮（你+对方）并重新生成最后一条模型消息
+  if (rerollBtn) {
+    rerollBtn.addEventListener("click", () => {
+      rerollLastTurnFromPhone();
+    });
+  }
 }
 
 async function sendBufferedFromPhone() {
@@ -754,7 +928,9 @@ async function sendBufferedFromPhone() {
   // ==== 合并待发送文本 ====
   const textPieces = [];
   pendings.forEach((p) => {
-    if (!p.revoked) textPieces.push(p.text);
+    // ⚠️ 撤回不等于“不发送”：撤回=UI 变占位，但模型仍能看到原文（用于戏剧效果）
+    // 所以 pending 的 revoked 也要保留进本轮发送内容
+    textPieces.push(p.text);
   });
   if (extraText) textPieces.push(extraText);
   const merged = textPieces.join("\n\n");
@@ -767,12 +943,17 @@ async function sendBufferedFromPhone() {
     charName = ctx.characterName;
   }
 
-   // ==== 决定当前联系人 ====
+  // ==== 决定当前联系人 ====
   initPhoneContactsForUI();
   const contactName = getCurrentContactName();
 
   // ==== 根据联系人 + 上下文，最终确定本次对话的角色身份 ====
-  charName = resolveCharNameForPhone(charName, contactName);
+  charName = resolveCharNameForPhone(contactName, contactName);
+
+  // 🔒 强制锁定 roleKey，防止模型跳角色
+  const roleKey =
+    (window.getRoleKeyFromName && window.getRoleKeyFromName(charName)) || "unknown";
+
 
   // ==== 写入手机聊天历史 ====
   pendings.forEach((p) =>
@@ -782,7 +963,7 @@ async function sendBufferedFromPhone() {
   saveHistoryToMetadata();
 
   // ==== 构建发给模型的 prompt ====
-  const finalPrompt = await buildPhonePrompt(merged, charName, contactName);
+  const finalPrompt = await buildPhonePrompt(merged, charName, contactName, roleKey);
   console.log("[外置手机][DEBUG] 发送给模型的完整提示词：\n", finalPrompt);
 
 
@@ -801,7 +982,7 @@ async function sendBufferedFromPhone() {
       messages: [
         { role: "user", content: finalPrompt },
       ],
-      max_tokens: 512,
+      max_tokens: 1536,
     });
 
     if (!reply) {
@@ -840,31 +1021,174 @@ async function sendBufferedFromPhone() {
 
   const startTime = Date.now();
   const timeoutMs = 60000;
-  const pollInterval = 1000;
+  const pollInterval = 500;
+
+  let lastText = "";
+  let stableCount = 0;
 
   function pollReply() {
     const ctxNow = getContextSafe() || {};
     const chatNow = Array.isArray(ctxNow.chat) ? ctxNow.chat : [];
 
-    if (chatNow.length > prevLen) {
-      for (let i = chatNow.length - 1; i >= prevLen; i--) {
-        const msg = chatNow[i];
-        if (!msg || msg.is_user) continue;
-        const text = typeof msg.mes === "string" ? msg.mes : "";
-        if (!text) continue;
+    // 从新增区间里找“最新一条 assistant”
+    let found = null;
+    for (let i = chatNow.length - 1; i >= prevLen; i--) {
+      const msg = chatNow[i];
+      if (!msg || msg.is_user) continue;
+      const text = typeof msg.mes === "string" ? msg.mes : "";
+      if (!text) continue;
+      found = text;
+      break;
+    }
 
-        // 也统一走“多气泡 + 撤回指令 + 思考过滤”
-        handleCharReplyText(text);
+    if (found) {
+      // ✅ Debug：让你在 F12 里看到“实时抓到的原文”
+      console.log("[PHONE][charMessage]", { raw: found, visible: found });
+
+      if (found === lastText) {
+        stableCount += 1;
+      } else {
+        lastText = found;
+        stableCount = 0;
+      }
+
+      // 连续两次轮询内容都不变（≈1~2 秒），认为生成结束
+      if (stableCount >= 2) {
+        handleCharReplyText(found);
         saveHistoryToMetadata();
         return;
       }
     }
 
-    if (Date.now() - startTime > timeoutMs) return;
+    if (Date.now() - startTime > timeoutMs) {
+      // 超时也把最后一次抓到的内容吐出来（避免空白）
+      if (lastText) {
+        console.log("[PHONE][charMessage][timeout-final]", { raw: lastText });
+        handleCharReplyText(lastText);
+        saveHistoryToMetadata();
+      }
+      return;
+    }
+
     setTimeout(pollReply, pollInterval);
   }
-
   setTimeout(pollReply, pollInterval);
+}
+
+// ========== 重roll：删除上一轮（你+对方）并重新生成 ========== 
+function removeBubbleDomByMsgId(msgId) {
+  if (!msgId) return;
+  const list = document.getElementById(CHAT_LIST_ID);
+  if (!list) return;
+  const node = list.querySelector(`.ybm-chat-bubble[data-msg-id="${msgId}"]`);
+  if (node) node.remove();
+}
+
+async function rerollLastTurnFromPhone() {
+  try {
+    const history = getHistory();
+    if (!Array.isArray(history) || history.length < 2) return;
+
+    // 允许“对方连发多条”（多条 char 气泡）：
+    // 从末尾找到最近的一条 user，然后把它以及它之后的所有消息（通常是一串 char）全部删除，再用那条 user 重发。
+    let userIdx = -1;
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (history[i] && history[i].role === "user") {
+        userIdx = i;
+        break;
+      }
+    }
+
+    // 必须存在 user 且它后面至少有一条消息（否则没有可 reroll 的“对方回复”）
+    if (userIdx < 0 || userIdx >= history.length - 1) return;
+
+    const userMsg = history[userIdx];
+    const userText = String(userMsg.rawContent || userMsg.content || "").trim();
+    if (!userText) return;
+
+    // 要删除的 msg 列表：userIdx ~ end
+    const toDelete = history.slice(userIdx).map((m) => m && m.id).filter(Boolean);
+
+    // 1) 真删：内存历史 + metadata
+    toDelete.forEach((id) => deleteMessageById(id));
+    await saveHistoryToMetadata();
+
+    // 2) UI 只删这些气泡（不重画全屏，避免把“暂存未发送”的气泡清掉）
+    toDelete.forEach((id) => removeBubbleDomByMsgId(id));
+
+    // 3) 重新发一次上一轮用户文本
+    await sendDirectUserTextFromPhone(userText);
+  } catch (e) {
+    console.error("[外置手机][reroll] 失败：", e);
+  }
+}
+
+async function sendDirectUserTextFromPhone(userText) {
+  const text = String(userText || "").trim();
+  if (!text) return;
+
+  // ==== 判断当前是否是 SillyTavern ====
+  const hasST = !!(window.SillyTavern && typeof window.SillyTavern.getContext === "function");
+  const ctx = hasST ? getContextSafe() : null;
+
+  // ==== 决定角色名（初始）====
+  let charName = "角色";
+  if (hasST && ctx && ctx.characterName) {
+    charName = ctx.characterName;
+  }
+
+  // ==== 决定当前联系人 ====
+  initPhoneContactsForUI();
+  const contactName = getCurrentContactName();
+
+  // ==== 根据联系人 + 上下文，最终确定本次对话的角色身份 ====
+  charName = resolveCharNameForPhone(contactName, contactName);
+
+  // 🔒 强制锁定 roleKey，防止模型跳角色
+  const roleKey =
+    (window.getRoleKeyFromName && window.getRoleKeyFromName(charName)) || "unknown";
+
+  // 先把“我”这条重新发出的消息写入 UI+历史
+  appendBubble("user", text, { revoked: false, store: true });
+
+  // ==== 构建发给模型的 prompt ====
+  const finalPrompt = await buildPhonePrompt(text, charName, contactName, roleKey);
+  console.log("[外置手机][DEBUG][reroll] 发送给模型的完整提示词：\n", finalPrompt);
+
+  // ============================================================== 
+  // 🚀 ① 独立网页模式：直接调用 API
+  // ============================================================== 
+  if (!hasST) {
+    const reply = await callToolApi({
+      feature: "sms-chat",
+      messages: [{ role: "user", content: finalPrompt }],
+      max_tokens: 1536,
+    });
+
+    if (!reply) {
+      appendBubble("char", "（API 调用失败）", { revoked: false, store: true });
+      return;
+    }
+
+    handleCharReplyText(reply);
+    saveHistoryToMetadata();
+    return;
+  }
+
+  // ============================================================== 
+  // 🚀 ② SillyTavern 模式：写入主对话输入框
+  // ============================================================== 
+  const mainInput = document.getElementById("send_textarea");
+  const sendButton = document.getElementById("send_but");
+
+  if (!mainInput || !sendButton) {
+    console.warn("[外置手机] 找不到 send_textarea/send_but（当前应为独立模式）");
+    return;
+  }
+
+  mainInput.value = finalPrompt;
+  mainInput.dispatchEvent(new Event("input", { bubbles: true }));
+  sendButton.click();
 }
 
 
@@ -887,7 +1211,7 @@ function initPhoneContactsForUI() {
   const saveSettingsDebounced =
     typeof ctx.saveSettingsDebounced === "function"
       ? ctx.saveSettingsDebounced
-      : () => {};
+      : () => { };
 
   const coreForContacts = {
     getCurrentCharInfo() {
@@ -927,11 +1251,17 @@ function initPhoneContactsForUI() {
   }
 
   registerContactIdGetter(() => {
-    if (!phoneContacts || typeof phoneContacts.getCurrentContact !== "function")
-      return null;
-    const c = phoneContacts.getCurrentContact();
-    return c ? c.id : null;
+    const c = phoneContacts.getCurrentContact?.();
+
+    const contactName =
+      (c && c.name) || getCurrentContactName?.() || "";
+
+    const roleKey = getRoleKeyFromName(contactName);
+
+    // 每个角色一个独立聊天空间
+    return `phone:${roleKey}`;
   });
+
 
   return phoneContacts;
 }
@@ -1004,31 +1334,20 @@ function getCurrentContactName() {
 }
 // 根据当前 SillyTavern 角色名 + 联系人名，最终决定这次请求的「角色身份」
 function resolveCharNameForPhone(baseCharName, contactName) {
-  let name = (baseCharName || "").trim();
+  const pick = (s) => (typeof s === "string" ? s.trim() : "");
+  const base = pick(baseCharName);
+  const name = pick(contactName);
 
-  // 如果没拿到 ST 的角色名，或者只是一个通用的占位，就优先用联系人名字
-  if (!name || name === "角色") {
-    name = (contactName || "").trim();
-  }
+  // 只认四个角色（强制锁定）
+  const all = (base + " " + name);
 
-  if (!name) return "角色";
+  if (all.includes("岩白眉")) return "岩白眉";
+  if (all.includes("猜叔")) return "猜叔";
+  if (all.includes("但拓")) return "但拓";
+  if (all.includes("州槟") || all.includes("州滨")) return "州槟"; // 兼容州滨
 
-  // 做一下模糊归一，防止有昵称
-  if (name.includes("岩白眉") || name.includes("白眉")) {
-    return "岩白眉";
-  }
-  if (name.includes("猜叔") || name.includes("阿猜") || name.includes("猜哥")) {
-    return "猜叔";
-  }
-  if (name.includes("但拓") || name.toLowerCase().includes("dantuo")) {
-    return "但拓";
-  }
-  if (name.includes("州槟") || name.includes("州滨") || name.toLowerCase().includes("zhoubin")) {
-    return "州槟";
-  }
-
-  // 其他情况就用原来的名字
-  return name;
+  // 兜底：优先联系人名，其次 base，最后给岩白眉
+  return name || base || "岩白眉";
 }
 
 /* ===== 查手机：从联系人历史读“贴脸素材” ===== */
@@ -1072,13 +1391,13 @@ function renderMemoListView() {
     <div class="ybm-memo-header">选择要偷看的手机</div>
     <div class="ybm-memo-roles-grid">
       ${MEMO_CHAR_LIST.map(
-        (c) => `
+    (c) => `
         <div class="ybm-memo-role-card" data-char="${c.key}">
           <div class="role-name">${c.label}</div>
           <div class="role-sub">点按进入，再按“偷看”破解他的手机</div>
         </div>
       `
-      ).join("")}
+  ).join("")}
     </div>
   `;
 
@@ -1906,6 +2225,12 @@ export function createPhonePanel() {
                       placeholder="在这里给对方发消息..."
                     ></textarea>
                     <div class="ybm-chat-btn-group">
+                      <button
+                        type="button"
+                        id="ybm-chat-reroll-btn"
+                        class="ybm-chat-reroll-btn"
+                        title="重roll：删除上一轮（你+对方）并重新生成"
+                      >重roll</button>
                       <button
                         type="button"
                         id="ybm-chat-save-btn"

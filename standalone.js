@@ -32,3 +32,19 @@ document.addEventListener("DOMContentLoaded", () => {
     openPhoneAndShowApi();
   }
 });
+// ===== 更新公告控制 =====
+document.addEventListener("DOMContentLoaded", () => {
+  const updateBtn = document.getElementById("update-btn");
+  const updatePanel = document.getElementById("update-panel");
+  const closeUpdate = document.getElementById("close-update");
+
+  if (!updateBtn || !updatePanel || !closeUpdate) return;
+
+  updateBtn.onclick = () => {
+    updatePanel.classList.remove("hidden");
+  };
+
+  closeUpdate.onclick = () => {
+    updatePanel.classList.add("hidden");
+  };
+});
